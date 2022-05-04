@@ -82,6 +82,24 @@ functions:
       - httpApi:
           path: /product/{id}
           method: get
+  updateProduct:
+    handler: src/handlers.updateProduct
+    events:
+      - httpApi:
+          path: /product/{id}
+          method: put
+  deleteProduct:
+    handler: src/handlers.deleteProduct
+    events:
+      - httpApi:
+          path: /product/{id}
+          method: delete
+  listProduct:
+    handler: src/handlers.listProducts
+    events:
+      - httpApi:
+          path: /products
+          method: get
   
 
 #    The following are a few example events you can configure
