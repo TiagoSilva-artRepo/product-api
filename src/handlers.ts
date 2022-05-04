@@ -104,17 +104,32 @@ export const deleteProduct = async (event: APIGatewayProxyEvent): Promise<APIGat
   try {
     const id = event.pathParameters?.id as string;
     await fetchProductById(id);
-    await docClient.delete({
-      TableName: tableName,
-      Key: {
-        productID: id,
-      },
-    }).promise();
-        return {
-          statusCode: 200,
-          body: "",
-        };
+    await docClient
+      .delete({
+        TableName: tableName,
+        Key: {
+          productID: id,
+        },
+      })
+      .promise();
+    return {
+      statusCode: 200,
+      body: "",
+    };
   } catch (error) {
     return handleError(error);
   }
+};
+
+export const listProducts = async (event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> => {
+  const output = await docClient
+    .scan({
+      TableName: tableName,
+    })
+    .promise();
+
+  return {
+    statusCode: 200,
+    body: JSON.stringify(output.Items),
+  };
 };
