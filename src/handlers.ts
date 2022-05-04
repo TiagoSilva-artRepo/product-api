@@ -99,3 +99,22 @@ export const updateProduct = async (event: APIGatewayProxyEvent): Promise<APIGat
     return handleError(error);
   }
 };
+
+export const deleteProduct = async (event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> => {
+  try {
+    const id = event.pathParameters?.id as string;
+    await fetchProductById(id);
+    await docClient.delete({
+      TableName: tableName,
+      Key: {
+        productID: id,
+      },
+    }).promise();
+        return {
+          statusCode: 200,
+          body: "",
+        };
+  } catch (error) {
+    return handleError(error);
+  }
+};
