@@ -1,29 +1,47 @@
 import { APIGatewayProxyEvent, APIGatewayProxyResult } from "aws-lambda";
 import AWS from "aws-sdk";
 import { v4 } from "uuid";
+import * as yup from "yup";
 
 const docClient = new AWS.DynamoDB.DocumentClient();
 const tableName = "ProductsTable";
+const headers = {
+  "content-type": "application/json",
+};
+
+const schema = yup.object().shape({
+  name: yup.string().required(),
+  description: yup.string().required(),
+  price: yup.number().required(),
+  available: yup.bool().required(),
+});
 
 export const createProduct = async (event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> => {
-  const reqBody = JSON.parse(event.body as string);
+  try {
+    const reqBody = JSON.parse(event.body as string);
 
-  const product = {
-    ...reqBody,
-    productID: v4(),
-  };
+    await schema.validate(reqBody, { abortEarly: false });
 
-  await docClient
-    .put({
-      TableName: "ProductsTable",
-      Item: product,
-    })
-    .promise();
+    const product = {
+      ...reqBody,
+      productID: v4(),
+    };
 
-  return {
-    statusCode: 201,
-    body: JSON.stringify(product),
-  };
+    await docClient
+      .put({
+        TableName: "ProductsTable",
+        Item: product,
+      })
+      .promise();
+
+    return {
+      statusCode: 201,
+      headers,
+      body: JSON.stringify(product),
+    };
+  } catch (error) {
+    return handleError(error);
+  }
 };
 
 class HttpError extends Error {
@@ -50,9 +68,28 @@ const fetchProductById = async (id: string) => {
 };
 
 const handleError = (error: unknown) => {
+  if (error instanceof yup.ValidationError) {
+    return {
+      statusCode: 400,
+      headers,
+      body: JSON.stringify({
+        error: error.errors,
+      }),
+    };
+  }
+
+  if (error instanceof SyntaxError) {
+    return {
+      statusCode: 400,
+      headers,
+      body: JSON.stringify({ rror: `Invalid request body format: "${error.message}"` }),
+    };
+  }
+
   if (error instanceof HttpError) {
     return {
       statusCode: error.statusCode,
+      headers,
       body: error.message,
     };
   }
@@ -65,6 +102,7 @@ export const getProduct = async (event: APIGatewayProxyEvent): Promise<APIGatewa
 
     return {
       statusCode: 200,
+      headers,
       body: JSON.stringify(product),
     };
   } catch (error) {
@@ -84,6 +122,8 @@ export const updateProduct = async (event: APIGatewayProxyEvent): Promise<APIGat
       productID: id,
     };
 
+    await schema.validate(reqBody, { abortEarly: false });
+
     await docClient
       .put({
         TableName: "ProductsTable",
@@ -93,6 +133,7 @@ export const updateProduct = async (event: APIGatewayProxyEvent): Promise<APIGat
 
     return {
       statusCode: 200,
+      headers,
       body: JSON.stringify(product),
     };
   } catch (error) {
@@ -113,7 +154,8 @@ export const deleteProduct = async (event: APIGatewayProxyEvent): Promise<APIGat
       })
       .promise();
     return {
-      statusCode: 200,
+      statusCode: 204,
+      headers,
       body: "",
     };
   } catch (error) {
@@ -130,6 +172,7 @@ export const listProducts = async (event: APIGatewayProxyEvent): Promise<APIGate
 
   return {
     statusCode: 200,
+    headers,
     body: JSON.stringify(output.Items),
   };
 };
